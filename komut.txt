@@ -68,38 +68,61 @@ Hücre 1: Setup ve Clone
 import os
 os.chdir('/kaggle/working/bosch-kaggle-pipeline')
 
-# Kontrolprint("Current directory:", os.getcwd())
+# Kontrol
+print("✅ Setup complete!")
+print("Current directory:", os.getcwd())
 print("\nBosch scripts:")
 !ls -la bosch/scripts/
 
-Hücre 2: Quick Test (1 fold, ~30 dakika)
+# Veri dizinini kontrol et
+import os
+
+data_dir = '/kaggle/input/bosch-production-line-performance'
+print(f"Data directory: {data_dir}")
+print(f"Exists: {os.path.exists(data_dir)}")
+
+if os.path.exists(data_dir):
+    files = os.listdir(data_dir)
+    zip_files = [f for f in files if f.endswith('.zip')]
+    print(f"\n✅ Found {len(zip_files)} zip files")
+    print("Zip files will be automatically extracted when needed!")
+
+Hücre 3: Quick Test (1 fold, ~30 dakika)
 # Quick test - 1 fold ile hızlı test
 # Zip dosyaları otomatik açılacak!
 !python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
 
-Hücre 3: Full Training (5 folds, birkaç saat)
+Hücre 4: Full Training (5 folds, birkaç saat)
 # Full training - 5 fold cross-validation
 # Zip dosyaları otomatik açılacak!
 !python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance
 
-Hücre 4: Submission Oluştur
+Hücre 5: Submission Oluştur
 # Submission dosyası oluştur
 !python bosch/scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
 
-Hücre 5: Sonuçları Kontrol Et
+Hücre 6: Sonuçları Kontrol Et
 # Submission dosyasını kontrol et
 import pandas as pd
-submission_path = '/kaggle/working/bosch-kaggle-pipeline/bosch/outputs/submissions/submission.csv'
-submission = pd.read_csv(submission_path)
-print("Submission Preview:")
-print(submission.head(10))
-print(f"\nShape: {submission.shape}")
-print(f"\nResponse value counts:")
-print(submission['Response'].value_counts())
-print(f"\nResponse distribution:")
-print(submission['Response'].value_counts(normalize=True))
-
-# Dosya boyutu
 import os
-file_size = os.path.getsize(submission_path) / 1024  # KB
-print(f"\nFile size: {file_size:.2f} KB")
+
+submission_path = '/kaggle/working/bosch-kaggle-pipeline/bosch/outputs/submissions/submission.csv'
+
+if os.path.exists(submission_path):
+    submission = pd.read_csv(submission_path)
+    
+    print("✅ Submission created successfully!")
+    print("\nSubmission Preview:")
+    print(submission.head(10))
+    print(f"\nShape: {submission.shape}")
+    print(f"\nResponse value counts:")
+    print(submission['Response'].value_counts())
+    print(f"\nResponse distribution:")
+    print(submission['Response'].value_counts(normalize=True))
+    
+    # Dosya boyutu
+    file_size = os.path.getsize(submission_path) / 1024  # KB
+    print(f"\nFile size: {file_size:.2f} KB")
+    print(f"\n📍 Submission path: {submission_path}")
+else:
+    print("❌ Submission file not found!")
