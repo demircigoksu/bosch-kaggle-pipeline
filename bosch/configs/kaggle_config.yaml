@@ -6,7 +6,10 @@ data_dir: "../input"
 # data_dir: "../data"
 
 # Data loading
-chunk_size: 50000
+# chunk_size: Auto-adjusted based on file size
+# For files >2GB, will use 20000 automatically
+# For files >1GB, will use 25000 automatically
+chunk_size: 20000  # Optimized for memory efficiency with very large datasets (>2GB)
 load_categorical: true
 load_date: true
 

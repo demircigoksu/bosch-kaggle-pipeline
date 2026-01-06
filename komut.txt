@@ -24,9 +24,30 @@ python -m pip install pyyaml psutil
 python bosch/scripts/train_bosch.py data --quick
 python bosch/scripts/submit_bosch.py data
 
-# Kaggle notebook'da:
-!python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
-!python bosch/scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
+# ============================================
+# KAGGLE NOTEBOOK'DA ÇALIŞTIRMA
+# ============================================
+# 
+# Adım 1: Kaggle notebook oluştur ve veri setini ekle
+# Adım 2: Kod dosyalarını yükle (GitHub clone veya dataset olarak)
+# Adım 3: Aşağıdaki komutları notebook hücrelerinde çalıştır:
+#
+# Hücre 1: Setup
+# !git clone https://github.com/KULLANICI_ADI/bosch-kaggle-pipeline.git
+# !pip install pyyaml psutil
+# import os
+# os.chdir('/kaggle/working/bosch-kaggle-pipeline')
+#
+# Hücre 2: Quick Test (1 fold, ~30 dakika)
+# !python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
+#
+# Hücre 3: Full Training (5 folds, birkaç saat)
+# !python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance
+#
+# Hücre 4: Submission Oluştur
+# !python bosch/scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
+#
+# Detaylı rehber için: KAGGLE_NOTEBOOK_GUIDE.md dosyasına bakın
 
 cd /home/goksu/code/bosch-kaggle-pipeline
 bash init_and_push.sh

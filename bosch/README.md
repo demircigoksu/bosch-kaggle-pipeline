@@ -55,26 +55,40 @@ If needed, install additional dependencies:
 pip install pyyaml psutil
 ```
 
-### Running the Pipeline
+### Running the Pipeline in Kaggle Notebook
 
-#### 1. Training
+**📖 Detaylı rehber için: `KAGGLE_NOTEBOOK_GUIDE.md` dosyasına bakın**
 
-```bash
-cd bosch
-python scripts/train_bosch.py /kaggle/input/bosch-production-line-performance
+#### Hızlı Başlangıç:
+
+1. **Kaggle Notebook oluştur** ve veri setini ekle
+2. **Kod dosyalarını yükle** (GitHub clone veya dataset):
+```python
+!git clone https://github.com/KULLANICI_ADI/bosch-kaggle-pipeline.git
+!pip install pyyaml psutil
+import os
+os.chdir('/kaggle/working/bosch-kaggle-pipeline')
 ```
 
-For a quick test (1 fold only):
-```bash
-python scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
+3. **Quick Test (1 fold, ~30 dakika)**:
+```python
+!python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
 ```
 
-#### 2. Generate Submission
-
-After training completes:
-```bash
-python scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
+4. **Full Training (5 folds, birkaç saat)**:
+```python
+!python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance
 ```
+
+5. **Submission Oluştur**:
+```python
+!python bosch/scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
+```
+
+#### Notlar:
+- Kaggle notebook'lar 16-30 GB RAM sağlar, kod otomatik optimize edilir
+- Tüm çıktılar `/kaggle/working/bosch/outputs/` altında
+- Detaylı adım adım rehber: `KAGGLE_NOTEBOOK_GUIDE.md`
 
 The submission file will be saved to `bosch/outputs/submissions/submission.csv`.
 
