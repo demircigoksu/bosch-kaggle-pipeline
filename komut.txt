@@ -1,0 +1,23 @@
+# WSL'de kurulum:
+# 1. Virtual environment oluştur (ilk sefer)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. Paketleri yükle
+python -m pip install --upgrade pip
+python -m pip install -r bosch/requirements.txt
+
+# 3. Her terminal açılışında virtual env aktif et
+source .venv/bin/activate
+
+# Önce gerekli paketleri yükle (virtual env sorunu varsa python -m pip kullan):
+python -m pip install pyyaml psutil
+# Veya: python -m pip install -r bosch/requirements.txt
+
+# Yerel test:
+python bosch/scripts/train_bosch.py data --quick
+python bosch/scripts/submit_bosch.py data
+
+# Kaggle notebook'da:
+!python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
+!python bosch/scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
