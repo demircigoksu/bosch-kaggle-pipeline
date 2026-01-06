@@ -56,3 +56,50 @@ cd /home/goksu/code/bosch-kaggle-pipeline
 chmod +x setup_wsl_auto_venv.sh
 bash setup_wsl_auto_venv.sh
 source ~/.bashrc
+
+Hücre 1: Setup ve Clone
+# GitHub'dan kodları çek
+!git clone https://github.com/KULLANICI_ADI/bosch-kaggle-pipeline.git
+
+# Gerekli paketleri yükle
+!pip install pyyaml psutil
+
+# Proje dizinine git
+import os
+os.chdir('/kaggle/working/bosch-kaggle-pipeline')
+
+# Kontrolprint("Current directory:", os.getcwd())
+print("\nBosch scripts:")
+!ls -la bosch/scripts/
+
+Hücre 2: Quick Test (1 fold, ~30 dakika)
+# Quick test - 1 fold ile hızlı test
+# Zip dosyaları otomatik açılacak!
+!python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
+
+Hücre 3: Full Training (5 folds, birkaç saat)
+# Full training - 5 fold cross-validation
+# Zip dosyaları otomatik açılacak!
+!python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance
+
+Hücre 4: Submission Oluştur
+# Submission dosyası oluştur
+!python bosch/scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
+
+Hücre 5: Sonuçları Kontrol Et
+# Submission dosyasını kontrol et
+import pandas as pd
+submission_path = '/kaggle/working/bosch-kaggle-pipeline/bosch/outputs/submissions/submission.csv'
+submission = pd.read_csv(submission_path)
+print("Submission Preview:")
+print(submission.head(10))
+print(f"\nShape: {submission.shape}")
+print(f"\nResponse value counts:")
+print(submission['Response'].value_counts())
+print(f"\nResponse distribution:")
+print(submission['Response'].value_counts(normalize=True))
+
+# Dosya boyutu
+import os
+file_size = os.path.getsize(submission_path) / 1024  # KB
+print(f"\nFile size: {file_size:.2f} KB")
