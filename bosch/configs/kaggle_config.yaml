@@ -1,0 +1,43 @@
+# Bosch Kaggle Pipeline Configuration
+
+# Data paths (for Kaggle, use ../input/)
+data_dir: "../input"
+# For local testing, use:
+# data_dir: "../data"
+
+# Data loading
+chunk_size: 50000
+load_categorical: true
+load_date: true
+
+# Feature engineering
+extract_missingness: true
+extract_numeric_agg: true
+extract_date_features: true
+encode_categorical: true
+max_missing_pct: 0.99  # Drop columns with >99% missing
+categorical_min_freq: 2  # Minimum frequency for categorical encoding
+categorical_top_k: null  # Top-K categories to keep (null = all)
+
+# Cross-validation
+n_folds: 5
+random_seed: 42
+
+# Model parameters (XGBoost)
+model_params:
+  n_estimators: 200
+  max_depth: 6
+  learning_rate: 0.05
+  min_child_weight: 3
+  subsample: 0.8
+  colsample_bytree: 0.8
+
+# Output settings
+save_fold_models: false  # Set to true to save each fold's model (uses more disk)
+
+# Output directories (relative to bosch/)
+output_dir: "outputs"
+models_dir: "outputs/models"
+submissions_dir: "outputs/submissions"
+reports_dir: "outputs/reports"
+

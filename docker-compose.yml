@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Bosch Kaggle Pipeline Training Service
+  bosch-kaggle-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bosch-kaggle-pipeline
+    volumes:
+      # Mount data directory
+      - ./data:/app/data:ro
+      # Mount outputs directory (writable)
+      - ./bosch/outputs:/app/bosch/outputs
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Override command when running
+    # Example: docker-compose run bosch-kaggle-pipeline python scripts/train_bosch.py /app/data --quick
+    command: python scripts/train_bosch.py /app/data --quick
+    networks:
+      - bosch-kaggle-network
+    restart: "no"
+
+networks:
+  bosch-kaggle-network:
+    driver: bridge
+
