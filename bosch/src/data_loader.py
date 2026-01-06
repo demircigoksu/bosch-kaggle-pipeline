@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Tuple, Optional
 import logging
 import os
+import gc
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,14 @@ def get_memory_usage_mb() -> float:
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / 1024 / 1024
     return 0.0
+
+
+def check_memory_available_mb() -> Optional[float]:
+    """Check available system memory in MB. Returns None if psutil not available."""
+    if PSUTIL_AVAILABLE:
+        mem = psutil.virtual_memory()
+        return mem.available / 1024 / 1024
+    return None
 
 
 def log_memory(message: str = ""):
@@ -54,13 +63,29 @@ def load_numeric_chunked(
         DataFrame with optimized dtypes
     """
     logger.info(f"Loading numeric data from {file_path}")
+    
+    # Check file size
+    file_size_mb = file_path.stat().st_size / (1024 * 1024)
+    logger.info(f"File size: {file_size_mb:.1f} MB")
+    
+    # Check available memory
+    available_mem = check_memory_available_mb()
+    if available_mem is not None:
+        logger.info(f"Available system memory: {available_mem:.1f} MB")
+        if available_mem < 2000:
+            logger.warning(f"Low available memory ({available_mem:.1f} MB). Consider reducing chunk_size.")
+    
     log_memory("Before loading numeric")
     
     chunks = []
     total_rows = 0
     
     # First pass: determine dtypes from sample
-    sample = pd.read_csv(file_path, nrows=10000, usecols=usecols)
+    try:
+        sample = pd.read_csv(file_path, nrows=10000, usecols=usecols)
+    except Exception as e:
+        logger.error(f"Failed to read sample from {file_path}: {str(e)}")
+        raise
     
     # Optimize dtypes
     dtype_dict = {}
@@ -80,52 +105,83 @@ def load_numeric_chunked(
             else:
                 dtype_dict[col] = 'float32'
     
-    # Read in chunks and consolidate periodically to save memory
-    # Consolidate every 10 chunks to limit memory usage
-    consolidate_every = 10
+    # Clear sample to free memory
+    del sample
+    gc.collect()
+    
+    # Read in chunks and consolidate very frequently to save memory
+    # Use smaller consolidate_every for large files to minimize peak memory
+    # For files > 1GB, consolidate every 3 chunks; otherwise every 5
+    if file_size_mb > 1000:
+        consolidate_every = 3
+        logger.info(f"Large file detected, using aggressive consolidation (every {consolidate_every} chunks)")
+    else:
+        consolidate_every = 5
     chunks = []
     df = None
     
-    for chunk_num, chunk in enumerate(pd.read_csv(
-        file_path,
-        chunksize=chunk_size,
-        dtype=dtype_dict,
-        usecols=usecols
-    ), 1):
-        chunks.append(chunk)
-        total_rows += len(chunk)
+    try:
+        for chunk_num, chunk in enumerate(pd.read_csv(
+            file_path,
+            chunksize=chunk_size,
+            dtype=dtype_dict,
+            usecols=usecols
+        ), 1):
+            try:
+                chunks.append(chunk)
+                total_rows += len(chunk)
+                
+                # Periodically consolidate chunks to free memory (more frequently)
+                if len(chunks) >= consolidate_every:
+                    logger.debug(f"  Consolidating chunks at chunk {chunk_num}...")
+                    consolidated = pd.concat(chunks, ignore_index=True)
+                    chunks = []  # Clear chunks list to free memory
+                    
+                    if df is None:
+                        df = consolidated
+                    else:
+                        df = pd.concat([df, consolidated], ignore_index=True)
+                    
+                    # Force garbage collection immediately
+                    del consolidated
+                    gc.collect()
+                    
+                    # Check memory after consolidation
+                    current_mem = get_memory_usage_mb()
+                    if current_mem > 4000:  # Warn if over 4GB
+                        logger.warning(f"High memory usage: {current_mem:.1f} MB after chunk {chunk_num}")
+                
+                # Log progress more frequently for large files
+                if chunk_num % 5 == 0:
+                    logger.info(f"  Processed {total_rows:,} rows...")
+                    log_memory(f"  After chunk {chunk_num}")
+                    
+            except Exception as e:
+                logger.error(f"Error processing chunk {chunk_num}: {str(e)}")
+                logger.exception("Full traceback:")
+                raise
         
-        # Periodically consolidate chunks to free memory
-        if len(chunks) >= consolidate_every:
+        # Concatenate any remaining chunks
+        if chunks:
+            logger.debug(f"  Consolidating remaining {len(chunks)} chunks...")
             consolidated = pd.concat(chunks, ignore_index=True)
-            chunks = []  # Clear chunks list to free memory
-            
+            chunks = []
             if df is None:
                 df = consolidated
             else:
                 df = pd.concat([df, consolidated], ignore_index=True)
-            
-            # Force garbage collection hint
             del consolidated
+            gc.collect()
         
-        if chunk_num % 10 == 0:
-            logger.info(f"  Processed {total_rows:,} rows...")
-            log_memory(f"  After chunk {chunk_num}")
-    
-    # Concatenate any remaining chunks
-    if chunks:
-        consolidated = pd.concat(chunks, ignore_index=True)
-        chunks = []
-        if df is None:
-            df = consolidated
-        else:
-            df = pd.concat([df, consolidated], ignore_index=True)
-        del consolidated
-    
-    logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
-    log_memory("After loading numeric")
-    
-    return df
+        logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
+        log_memory("After loading numeric")
+        
+        return df
+        
+    except Exception as e:
+        logger.error(f"Fatal error in load_numeric_chunked: {str(e)}")
+        logger.exception("Full traceback:")
+        raise
 
 
 def load_categorical_chunked(
@@ -153,9 +209,13 @@ def load_categorical_chunked(
     # Read Id as int32, rest as string
     dtype_dict = {'Id': 'int32'}
     
-    # Read in chunks and consolidate periodically to save memory
-    # Consolidate every 10 chunks to limit memory usage
-    consolidate_every = 10
+    # Read in chunks and consolidate more frequently
+    # Check file size for categorical data too
+    file_size_mb = file_path.stat().st_size / (1024 * 1024)
+    if file_size_mb > 1000:
+        consolidate_every = 3
+    else:
+        consolidate_every = 5
     chunks = []
     df = None
     
@@ -175,6 +235,7 @@ def load_categorical_chunked(
         
         # Periodically consolidate chunks to free memory
         if len(chunks) >= consolidate_every:
+            logger.debug(f"  Consolidating chunks at chunk {chunk_num}...")
             consolidated = pd.concat(chunks, ignore_index=True)
             chunks = []  # Clear chunks list to free memory
             
@@ -183,8 +244,9 @@ def load_categorical_chunked(
             else:
                 df = pd.concat([df, consolidated], ignore_index=True)
             
-            # Force garbage collection hint
+            # Force garbage collection
             del consolidated
+            gc.collect()
         
         if chunk_num % 10 == 0:
             logger.info(f"  Processed {total_rows:,} rows...")
@@ -192,6 +254,7 @@ def load_categorical_chunked(
     
     # Concatenate any remaining chunks
     if chunks:
+        logger.debug(f"  Consolidating remaining {len(chunks)} chunks...")
         consolidated = pd.concat(chunks, ignore_index=True)
         chunks = []
         if df is None:
@@ -199,6 +262,7 @@ def load_categorical_chunked(
         else:
             df = pd.concat([df, consolidated], ignore_index=True)
         del consolidated
+        gc.collect()
     
     logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
     log_memory("After loading categorical")
@@ -230,9 +294,13 @@ def load_date_chunked(
     # Use float32 for all date columns (preserves NaNs)
     dtype_dict = {'Id': 'int32'}
     
-    # Read in chunks and consolidate periodically to save memory
-    # Consolidate every 10 chunks to limit memory usage
-    consolidate_every = 10
+    # Read in chunks and consolidate more frequently
+    # Check file size for categorical data too
+    file_size_mb = file_path.stat().st_size / (1024 * 1024)
+    if file_size_mb > 1000:
+        consolidate_every = 3
+    else:
+        consolidate_every = 5
     chunks = []
     df = None
     
@@ -252,6 +320,7 @@ def load_date_chunked(
         
         # Periodically consolidate chunks to free memory
         if len(chunks) >= consolidate_every:
+            logger.debug(f"  Consolidating chunks at chunk {chunk_num}...")
             consolidated = pd.concat(chunks, ignore_index=True)
             chunks = []  # Clear chunks list to free memory
             
@@ -260,8 +329,9 @@ def load_date_chunked(
             else:
                 df = pd.concat([df, consolidated], ignore_index=True)
             
-            # Force garbage collection hint
+            # Force garbage collection
             del consolidated
+            gc.collect()
         
         if chunk_num % 10 == 0:
             logger.info(f"  Processed {total_rows:,} rows...")
@@ -269,6 +339,7 @@ def load_date_chunked(
     
     # Concatenate any remaining chunks
     if chunks:
+        logger.debug(f"  Consolidating remaining {len(chunks)} chunks...")
         consolidated = pd.concat(chunks, ignore_index=True)
         chunks = []
         if df is None:
@@ -276,6 +347,7 @@ def load_date_chunked(
         else:
             df = pd.concat([df, consolidated], ignore_index=True)
         del consolidated
+        gc.collect()
     
     logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
     log_memory("After loading date")
@@ -307,6 +379,8 @@ def merge_by_id(
         result = result.merge(df, on=on, how=how, suffixes=('', f'_dup{i}'))
         logger.info(f"  Merged dataframe {i+1}/{len(dfs)}")
         log_memory(f"  After merge {i+1}")
+        # Force garbage collection after each merge
+        gc.collect()
     
     logger.info(f"Merged shape: {result.shape}")
     log_memory("After merge")
@@ -352,8 +426,21 @@ def load_kaggle_data(
     
     # Load numeric data (required)
     logger.info("\n1. Loading numeric data...")
-    train_numeric = load_numeric_chunked(train_numeric_path, chunk_size, is_train=True)
-    test_numeric = load_numeric_chunked(test_numeric_path, chunk_size, is_train=False)
+    try:
+        train_numeric = load_numeric_chunked(train_numeric_path, chunk_size, is_train=True)
+        logger.info("Train numeric loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load train numeric data: {str(e)}")
+        logger.exception("Full traceback:")
+        raise
+    
+    try:
+        test_numeric = load_numeric_chunked(test_numeric_path, chunk_size, is_train=False)
+        logger.info("Test numeric loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load test numeric data: {str(e)}")
+        logger.exception("Full traceback:")
+        raise
     
     # Extract Id and Response from train
     train_ids = train_numeric['Id'].copy()
@@ -364,6 +451,9 @@ def load_kaggle_data(
     test_numeric = test_numeric.drop(columns=['Id'], errors='ignore')
     
     logger.info(f"Train numeric: {train_numeric.shape}, Test numeric: {test_numeric.shape}")
+    
+    # Force garbage collection after dropping columns
+    gc.collect()
     
     # Load categorical data (optional)
     train_dfs = [train_numeric]
@@ -381,6 +471,10 @@ def load_kaggle_data(
         train_dfs.append(train_cat_features)
         test_dfs.append(test_cat_features)
         logger.info(f"Train categorical: {train_cat_features.shape}, Test categorical: {test_cat_features.shape}")
+        
+        # Free memory
+        del train_categorical, test_categorical
+        gc.collect()
     else:
         logger.info("\n2. Skipping categorical data (files not found or disabled)")
     
@@ -397,6 +491,10 @@ def load_kaggle_data(
         train_dfs.append(train_date_features)
         test_dfs.append(test_date_features)
         logger.info(f"Train date: {train_date_features.shape}, Test date: {test_date_features.shape}")
+        
+        # Free memory
+        del train_date, test_date
+        gc.collect()
     else:
         logger.info("\n3. Skipping date data (files not found or disabled)")
     
@@ -426,4 +524,3 @@ def load_kaggle_data(
     log_memory("Final")
     
     return X_train, y_train, X_test, test_ids_final
-
