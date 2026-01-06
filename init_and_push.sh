@@ -17,8 +17,8 @@ git init
 
 # 2. Remote repository'yi ekle
 echo "2. Remote repository ekleniyor..."
-git remote add origin git@github.com:demircigoksu/bosch-kaggle-pipeline.git 2>/dev/null || \
-git remote set-url origin git@github.com:demircigoksu/bosch-kaggle-pipeline.git
+git remote add origin https://github.com/demircigoksu/bosch-kaggle-pipeline.git 2>/dev/null || \
+git remote set-url origin https://github.com/demircigoksu/bosch-kaggle-pipeline.git
 
 # 3. Tüm dosyaları ekle (data hariç - .gitignore sayesinde)
 echo "3. Dosyalar stage'e ekleniyor..."
