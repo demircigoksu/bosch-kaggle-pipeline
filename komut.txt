@@ -21,3 +21,6 @@ python bosch/scripts/submit_bosch.py data
 # Kaggle notebook'da:
 !python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
 !python bosch/scripts/submit_bosch.py /kaggle/input/bosch-production-line-performance
+
+cd /home/goksu/code/bosch-kaggle-pipeline
+bash init_and_push.sh

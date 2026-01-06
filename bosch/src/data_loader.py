@@ -80,7 +80,12 @@ def load_numeric_chunked(
             else:
                 dtype_dict[col] = 'float32'
     
-    # Read in chunks
+    # Read in chunks and consolidate periodically to save memory
+    # Consolidate every 10 chunks to limit memory usage
+    consolidate_every = 10
+    chunks = []
+    df = None
+    
     for chunk_num, chunk in enumerate(pd.read_csv(
         file_path,
         chunksize=chunk_size,
@@ -89,11 +94,34 @@ def load_numeric_chunked(
     ), 1):
         chunks.append(chunk)
         total_rows += len(chunk)
+        
+        # Periodically consolidate chunks to free memory
+        if len(chunks) >= consolidate_every:
+            consolidated = pd.concat(chunks, ignore_index=True)
+            chunks = []  # Clear chunks list to free memory
+            
+            if df is None:
+                df = consolidated
+            else:
+                df = pd.concat([df, consolidated], ignore_index=True)
+            
+            # Force garbage collection hint
+            del consolidated
+        
         if chunk_num % 10 == 0:
             logger.info(f"  Processed {total_rows:,} rows...")
             log_memory(f"  After chunk {chunk_num}")
     
-    df = pd.concat(chunks, ignore_index=True)
+    # Concatenate any remaining chunks
+    if chunks:
+        consolidated = pd.concat(chunks, ignore_index=True)
+        chunks = []
+        if df is None:
+            df = consolidated
+        else:
+            df = pd.concat([df, consolidated], ignore_index=True)
+        del consolidated
+    
     logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
     log_memory("After loading numeric")
     
@@ -120,11 +148,16 @@ def load_categorical_chunked(
     logger.info(f"Loading categorical data from {file_path}")
     log_memory("Before loading categorical")
     
-    chunks = []
     total_rows = 0
     
     # Read Id as int32, rest as string
     dtype_dict = {'Id': 'int32'}
+    
+    # Read in chunks and consolidate periodically to save memory
+    # Consolidate every 10 chunks to limit memory usage
+    consolidate_every = 10
+    chunks = []
+    df = None
     
     for chunk_num, chunk in enumerate(pd.read_csv(
         file_path,
@@ -139,11 +172,34 @@ def load_categorical_chunked(
         
         chunks.append(chunk)
         total_rows += len(chunk)
+        
+        # Periodically consolidate chunks to free memory
+        if len(chunks) >= consolidate_every:
+            consolidated = pd.concat(chunks, ignore_index=True)
+            chunks = []  # Clear chunks list to free memory
+            
+            if df is None:
+                df = consolidated
+            else:
+                df = pd.concat([df, consolidated], ignore_index=True)
+            
+            # Force garbage collection hint
+            del consolidated
+        
         if chunk_num % 10 == 0:
             logger.info(f"  Processed {total_rows:,} rows...")
             log_memory(f"  After chunk {chunk_num}")
     
-    df = pd.concat(chunks, ignore_index=True)
+    # Concatenate any remaining chunks
+    if chunks:
+        consolidated = pd.concat(chunks, ignore_index=True)
+        chunks = []
+        if df is None:
+            df = consolidated
+        else:
+            df = pd.concat([df, consolidated], ignore_index=True)
+        del consolidated
+    
     logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
     log_memory("After loading categorical")
     
@@ -169,11 +225,16 @@ def load_date_chunked(
     logger.info(f"Loading date data from {file_path}")
     log_memory("Before loading date")
     
-    chunks = []
     total_rows = 0
     
     # Use float32 for all date columns (preserves NaNs)
     dtype_dict = {'Id': 'int32'}
+    
+    # Read in chunks and consolidate periodically to save memory
+    # Consolidate every 10 chunks to limit memory usage
+    consolidate_every = 10
+    chunks = []
+    df = None
     
     for chunk_num, chunk in enumerate(pd.read_csv(
         file_path,
@@ -188,11 +249,34 @@ def load_date_chunked(
         
         chunks.append(chunk)
         total_rows += len(chunk)
+        
+        # Periodically consolidate chunks to free memory
+        if len(chunks) >= consolidate_every:
+            consolidated = pd.concat(chunks, ignore_index=True)
+            chunks = []  # Clear chunks list to free memory
+            
+            if df is None:
+                df = consolidated
+            else:
+                df = pd.concat([df, consolidated], ignore_index=True)
+            
+            # Force garbage collection hint
+            del consolidated
+        
         if chunk_num % 10 == 0:
             logger.info(f"  Processed {total_rows:,} rows...")
             log_memory(f"  After chunk {chunk_num}")
     
-    df = pd.concat(chunks, ignore_index=True)
+    # Concatenate any remaining chunks
+    if chunks:
+        consolidated = pd.concat(chunks, ignore_index=True)
+        chunks = []
+        if df is None:
+            df = consolidated
+        else:
+            df = pd.concat([df, consolidated], ignore_index=True)
+        del consolidated
+    
     logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
     log_memory("After loading date")
     
