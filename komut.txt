@@ -59,7 +59,7 @@ source ~/.bashrc
 
 Hücre 1: Setup ve Clone
 # GitHub'dan kodları çek
-!git clone https://github.com/KULLANICI_ADI/bosch-kaggle-pipeline.git
+!git clone https://github.com/demircigoksu/bosch-kaggle-pipeline.git
 
 # Gerekli paketleri yükle
 !pip install pyyaml psutil

@@ -449,18 +449,26 @@ def _extract_zip_if_needed(data_dir: Path, csv_filename: str) -> Path:
     if zip_path.exists():
         logger.info(f"CSV file not found, extracting from {zip_path.name}...")
         
-        # Create extracted directory if it doesn't exist
-        extracted_dir = data_dir / "extracted"
-        extracted_dir.mkdir(exist_ok=True)
+        # For Kaggle, /kaggle/input is read-only, so extract to /kaggle/working
+        # For local, extract to data_dir/extracted
+        if is_kaggle_environment():
+            # Use /kaggle/working for extracted files
+            extracted_dir = Path("/kaggle/working/extracted_data")
+        else:
+            # Use data_dir/extracted for local
+            extracted_dir = data_dir / "extracted"
+        
+        extracted_dir.mkdir(parents=True, exist_ok=True)
         
         extracted_path = extracted_dir / csv_filename
         
         # Only extract if not already extracted
         if not extracted_path.exists():
             try:
+                logger.info(f"  Extracting {zip_path.name} to {extracted_dir}...")
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     zip_ref.extractall(extracted_dir)
-                logger.info(f"  Extracted {csv_filename} to {extracted_dir}")
+                logger.info(f"  ✅ Extracted {csv_filename} successfully")
             except Exception as e:
                 logger.error(f"Failed to extract {zip_path}: {str(e)}")
                 raise
