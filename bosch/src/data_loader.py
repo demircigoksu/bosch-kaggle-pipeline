@@ -10,6 +10,7 @@ from typing import Tuple, Optional
 import logging
 import os
 import gc
+import zipfile
 
 logger = logging.getLogger(__name__)
 
@@ -425,6 +426,51 @@ def merge_by_id(
     return result
 
 
+def _extract_zip_if_needed(data_dir: Path, csv_filename: str) -> Path:
+    """
+    Check if CSV file exists, if not check for zip file and extract it.
+    Returns the path to the CSV file (either original or extracted).
+    
+    Args:
+        data_dir: Directory containing data files
+        csv_filename: Name of the CSV file to look for
+    
+    Returns:
+        Path to the CSV file
+    """
+    csv_path = data_dir / csv_filename
+    zip_path = data_dir / f"{csv_filename}.zip"
+    
+    # If CSV exists, return it directly
+    if csv_path.exists():
+        return csv_path
+    
+    # If CSV doesn't exist but zip does, extract it
+    if zip_path.exists():
+        logger.info(f"CSV file not found, extracting from {zip_path.name}...")
+        
+        # Create extracted directory if it doesn't exist
+        extracted_dir = data_dir / "extracted"
+        extracted_dir.mkdir(exist_ok=True)
+        
+        extracted_path = extracted_dir / csv_filename
+        
+        # Only extract if not already extracted
+        if not extracted_path.exists():
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(extracted_dir)
+                logger.info(f"  Extracted {csv_filename} to {extracted_dir}")
+            except Exception as e:
+                logger.error(f"Failed to extract {zip_path}: {str(e)}")
+                raise
+        
+        return extracted_path
+    
+    # Neither CSV nor zip found
+    return csv_path  # Return original path, will raise error later
+
+
 def load_kaggle_data(
     data_dir: Path,
     chunk_size: int = 50000,
@@ -434,13 +480,11 @@ def load_kaggle_data(
     """
     Main entry point: Load all Kaggle data files and return X_train, y_train, X_test, test_ids.
     
+    Automatically handles both CSV files (local) and zip files (Kaggle).
     Automatically adjusts chunk_size based on available memory for large files.
-    """
-    """
-    Main entry point: Load all Kaggle data files and return X_train, y_train, X_test, test_ids.
     
     Args:
-        data_dir: Directory containing Kaggle input files
+        data_dir: Directory containing Kaggle input files (CSV or zip)
         chunk_size: Chunk size for reading
         load_categorical: Whether to load categorical files
         load_date: Whether to load date files
@@ -452,13 +496,17 @@ def load_kaggle_data(
     logger.info("Loading Kaggle Bosch Data")
     logger.info("=" * 60)
     
-    # File paths
-    train_numeric_path = data_dir / "train_numeric.csv"
-    test_numeric_path = data_dir / "test_numeric.csv"
-    train_categorical_path = data_dir / "train_categorical.csv"
-    test_categorical_path = data_dir / "test_categorical.csv"
-    train_date_path = data_dir / "train_date.csv"
-    test_date_path = data_dir / "test_date.csv"
+    # Convert to Path if string
+    data_dir = Path(data_dir)
+    
+    # Check if we need to extract zip files
+    # File paths - try CSV first, then zip
+    train_numeric_path = _extract_zip_if_needed(data_dir, "train_numeric.csv")
+    test_numeric_path = _extract_zip_if_needed(data_dir, "test_numeric.csv")
+    train_categorical_path = _extract_zip_if_needed(data_dir, "train_categorical.csv")
+    test_categorical_path = _extract_zip_if_needed(data_dir, "test_categorical.csv")
+    train_date_path = _extract_zip_if_needed(data_dir, "train_date.csv")
+    test_date_path = _extract_zip_if_needed(data_dir, "test_date.csv")
     
     # Check required files exist
     required_files = [train_numeric_path, test_numeric_path]
@@ -528,6 +576,7 @@ def load_kaggle_data(
     train_dfs = [train_numeric]
     test_dfs = [test_numeric]
     
+    # Check if categorical files exist (already extracted if needed)
     if load_categorical and train_categorical_path.exists() and test_categorical_path.exists():
         logger.info("\n2. Loading categorical data...")
         train_categorical = load_categorical_chunked(train_categorical_path, chunk_size)
@@ -551,6 +600,7 @@ def load_kaggle_data(
         logger.info("\n2. Skipping categorical data (files not found or disabled)")
     
     # Load date data (optional)
+    # Check if date files exist (already extracted if needed)
     if load_date and train_date_path.exists() and test_date_path.exists():
         logger.info("\n3. Loading date data...")
         train_date = load_date_chunked(train_date_path, chunk_size)

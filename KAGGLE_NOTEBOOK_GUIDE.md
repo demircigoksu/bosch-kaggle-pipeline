@@ -53,6 +53,8 @@ os.chdir('/kaggle/working/bosch-kaggle-pipeline')
 !pip install pyyaml psutil
 ```
 
+**Not:** Kod artık otomatik olarak zip dosyalarını açıyor! Manuel zip açma gerekmez.
+
 ## Adım 5: Training Çalıştırma
 
 ### Quick Test (1 fold, hızlı test için):
@@ -112,6 +114,7 @@ import os
 os.chdir('/kaggle/working/bosch-kaggle-pipeline')
 
 # Cell 2: Quick Test
+# Not: Zip dosyaları otomatik olarak açılacak, manuel işlem gerekmez!
 !python bosch/scripts/train_bosch.py /kaggle/input/bosch-production-line-performance --quick
 
 # Cell 3: Generate Submission
@@ -119,7 +122,7 @@ os.chdir('/kaggle/working/bosch-kaggle-pipeline')
 
 # Cell 4: Check Results
 import pandas as pd
-submission = pd.read_csv('/kaggle/working/bosch/outputs/submissions/submission.csv')
+submission = pd.read_csv('/kaggle/working/bosch-kaggle-pipeline/bosch/outputs/submissions/submission.csv')
 print(submission.head())
 print(f"Shape: {submission.shape}")
 print(f"Value counts:\n{submission['Response'].value_counts()}")
@@ -127,11 +130,12 @@ print(f"Value counts:\n{submission['Response'].value_counts()}")
 
 ## Önemli Notlar
 
-1. **Bellek**: Kaggle notebook'lar 16-30 GB RAM sağlar, kod otomatik olarak optimize edilir
-2. **Süre**: Full training birkaç saat sürebilir, quick test ~30 dakika
-3. **Output**: Tüm çıktılar `/kaggle/working/` altında kalıcı olarak saklanır
-4. **Internet**: Kaggle notebook'larda internet açık olmalı (git clone için)
-5. **GPU**: GPU gerekmez, CPU yeterli (XGBoost CPU'da çalışır)
+1. **Zip Dosyaları**: Kod otomatik olarak zip dosyalarını açar, manuel işlem gerekmez!
+2. **Bellek**: Kaggle notebook'lar 16-30 GB RAM sağlar, kod otomatik olarak optimize edilir
+3. **Süre**: Full training birkaç saat sürebilir, quick test ~30 dakika
+4. **Output**: Tüm çıktılar `/kaggle/working/` altında kalıcı olarak saklanır
+5. **Internet**: Kaggle notebook'larda internet açık olmalı (git clone için)
+6. **GPU**: GPU gerekmez, CPU yeterli (XGBoost CPU'da çalışır)
 
 ## Sorun Giderme
 
