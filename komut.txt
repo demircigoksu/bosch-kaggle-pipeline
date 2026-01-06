@@ -7,8 +7,14 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r bosch/requirements.txt
 
-# 3. Her terminal açılışında virtual env aktif et
+# 3. Otomatik venv aktivasyonu (ÖNERİLEN):
+#    Proje dizinine girdiğinizde venv otomatik aktif olur
+bash setup_wsl_auto_venv.sh
+#    Sonra yeni terminal açın veya: source ~/.bashrc
+
+# Alternatif: Manuel aktivasyon
 source .venv/bin/activate
+# Veya: source activate_venv.sh
 
 # Önce gerekli paketleri yükle (virtual env sorunu varsa python -m pip kullan):
 python -m pip install pyyaml psutil
@@ -24,3 +30,8 @@ python bosch/scripts/submit_bosch.py data
 
 cd /home/goksu/code/bosch-kaggle-pipeline
 bash init_and_push.sh
+
+cd /home/goksu/code/bosch-kaggle-pipeline
+chmod +x setup_wsl_auto_venv.sh
+bash setup_wsl_auto_venv.sh
+source ~/.bashrc
