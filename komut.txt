@@ -74,6 +74,7 @@ print("Current directory:", os.getcwd())
 print("\nBosch scripts:")
 !ls -la bosch/scripts/
 
+Hücre 2: Veri Dizinini Kontrol Et
 # Veri dizinini kontrol et
 import os
 
